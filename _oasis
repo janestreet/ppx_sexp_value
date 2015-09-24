@@ -1,0 +1,34 @@
+OASISFormat:      0.3
+OCamlVersion:     >= 4.02.3
+FindlibVersion:   >= 1.3.2
+Name:             ppx_sexp_value
+Version:          113.09.00
+Synopsis:         A ppx rewriter that simplifies building s-expressions from ocaml values
+Authors:          Jane Street Group, LLC <opensource@janestreet.com>
+Copyrights:       (C) 2015 Jane Street Group LLC <opensource@janestreet.com>
+Maintainers:      Jane Street Group, LLC <opensource@janestreet.com>
+License:          Apache-2.0
+LicenseFile:      LICENSE.txt
+Homepage:         https://github.com/janestreet/ppx_sexp_value
+Plugins:          StdFiles (0.3), DevFiles (0.3), META (0.3)
+XStdFilesAUTHORS: false
+XStdFilesREADME:  false
+BuildTools:       ocamlbuild
+
+Library ppx_sexp_value
+  Path:               src
+  Pack:               false
+  Modules:            Ppx_sexp_value
+  BuildDepends:       compiler-libs,
+                      ppx_core,
+                      ppx_driver,
+                      ppx_sexp_conv.expander,
+                      ppx_tools.metaquot
+
+Executable ppx
+  Path:               as_ppx
+  MainIs:             ppx.ml
+  Build:              true
+  Install:            false
+  CompiledObject:     byte
+  BuildDepends:       ppx_sexp_value, ppx_driver
