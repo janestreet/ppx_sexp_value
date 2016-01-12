@@ -43,25 +43,28 @@ the variant.
 Expressions with their evaluations
 ----------------------------------
 
-The `[%sexp]` extensions also let one prints a list of expressions
-with their evaluation. For instance:
+It is sometimes convenient to include the expression itself in the
+s-expression. This is especially true for debugging, as it avoid
+having to think of a label for a value; one can simply use the
+expression itself.
+
+Ppx\_sexp\_value allows this by reserving the `~~` operator. Inside
+`[%sexp]`, `~~<expr>` is the same as `("<expr>", <expr>)`.
+
+For instance:
 
 ```ocaml
-[%sexp (x : int) (y + z : int) "literal" ]
+[%sexp (~~(x : int), ~~(y + z : int), "literal") ]
 ```
 
 will be preprocessed into:
 
 ```ocaml
 List [List [Atom "x";     [%sexp_of: int] x];
-      List [Atom "x + y"; [%sexp_of: int] (x + y)];
+      List [Atom "y + z"; [%sexp_of: int] (y + z)];
       [%sexp_of: string] "literal";
      ]
 ```
-
-This form is only allowed when the contents of a `[%sexp]` is a
-sequence of two or more expressions (i.e. syntactically an application
-of a function to at least one argument).
 
 Recommended use for errors
 --------------------------
@@ -73,14 +76,36 @@ records to add context:
 ```ocaml
 try Unix.rename ~src:tmpfile ~dst
 with exn ->
-  failwiths "Error while renaming file"
+  raise_s
     [%sexp
+     "Error while renaming file",
       { source = (tmpfile : string)
       ; dest   = (dst     : string)
       ; exn    = (exn     : exn   )
-      }]
-    Fn.id
+      }
+    ]
 ```
+
+Application syntax (deprecated)
+-------------------------------
+
+The toplevel expression of `[%sexp]` can be a function application. In
+this case it is treated the same as a tuple, and `~~` is added to
+elements that are of the form `(expr : type)`. For instance:
+
+```ocaml
+[%sexp (x : int) (y + z : int) "literal" ]
+```
+
+is the same as:
+
+```ocaml
+[%sexp ~~(x : int), ~~(y + z : int), "literal"]
+```
+
+The first form is more compact but doesn't follow the general idea of
+ppx\_sexp\_value. It is explored more in details in
+[ppx_sexp_message](https://github.com/janestreet/ppx_sexp_message).
 
 Derived extensions (deprecated)
 -------------------------------
