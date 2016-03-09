@@ -44,12 +44,14 @@ Expressions with their evaluations
 ----------------------------------
 
 It is sometimes convenient to include the expression itself in the
-s-expression. This is especially true for debugging, as it avoid
+s-expression. This is especially true for debugging, as it avoids
 having to think of a label for a value; one can simply use the
 expression itself.
 
 Ppx\_sexp\_value allows this by reserving the `~~` operator. Inside
-`[%sexp]`, `~~<expr>` is the same as `("<expr>", <expr>)`.
+`[%sexp]`, `~~<expr>` is the same as `("<expr>", <expr>)`, where the
+type annotation in `<expr>` is stripped off in the s-expression
+(`~~<expr>` isn't allowed if `<expr>` is a data constructor).
 
 For instance:
 
