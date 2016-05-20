@@ -33,7 +33,8 @@ This does not require a record with fields a and b to exist (and if
 one does exist, its sexp_of function will be ignored unless a type
 annotation is added around the record).
 One can annotate a record field with the type `sexp_option` to achieve
-the same result as when using sexplib.
+the same result as when using sexplib. `sexp_option` has the same
+behavior inside tuples.
 
 Variant, polymorphic variants, tuples and lists are supported as
 well.  Variants are analogous to records in that a type containing the

@@ -48,6 +48,16 @@ let%test_unit "strange case doesn't raise an exception" =
     [%sexp `A :: `B]
 ;;
 
+let%test_unit "sexp_option everywhere except record fields" =
+  [%test_result: Sexp.t]
+    ~expect:(List [Atom "A"; List [Atom "B"; Atom "1"]; List [Atom "Some \"D\""; Atom "D"]])
+    [%sexp (`A,
+            B (Some 1 : int sexp_option),
+            C (None : int sexp_option),
+            ~~(Some "D" : string sexp_option),
+            ~~(None : string sexp_option))]
+;;
+
 let%test_module "optional record field" =
   (module struct
 
