@@ -25,13 +25,10 @@ let sexp_of_constant ~loc const =
     eapply ~loc (evar ~loc ("Sexplib.Conv.sexp_of_" ^ typ)) [pexp_constant ~loc const]
   in
   match const with
-  | Const_int       _ -> f "int"
-  | Const_char      _ -> f "char"
-  | Const_string    _ -> f "string"
-  | Const_float     _ -> f "float"
-  | Const_int32     _ -> f "int32"
-  | Const_int64     _ -> f "int64"
-  | Const_nativeint _ -> f "nativeint"
+  | Pconst_integer   _ -> f "int"
+  | Pconst_char      _ -> f "char"
+  | Pconst_string    _ -> f "string"
+  | Pconst_float     _ -> f "float"
 ;;
 
 type omittable_sexp =
@@ -119,7 +116,7 @@ and omittable_sexp_of_expr expr =
      | Pexp_record (fields, None) ->
        Present (sexp_of_record ~loc fields)
      | Pexp_apply ({ pexp_desc = Pexp_ident { txt = Lident "~~"; _ }; _},
-                   [ ("", { pexp_desc = Pexp_constraint (expr, ctyp); _ }) ]) ->
+                   [ (Nolabel, { pexp_desc = Pexp_constraint (expr, ctyp); _ }) ]) ->
        let expr_str = Pprintast.string_of_expression expr in
        let k hole =
          sexp_list ~loc
@@ -184,7 +181,7 @@ module Deprecated = struct
     (* Don't misinterpret [%sexp ~~(e : t)] for the deprecated application syntax. *)
     | Pexp_apply ({ pexp_desc = Pexp_ident { txt = Lident "~~"; _}; _ }, _) -> expr
     | Pexp_apply (f, (_ :: _ as args))
-      when List.for_all args ~f:(fun (lab, _) -> lab = "") ->
+      when List.for_all args ~f:(fun (lab, _) -> lab = Nolabel) ->
       let el = List.map (f :: List.map args ~f:snd) ~f:rewrite_arg in
       let e = pexp_tuple ~loc el in
       if !allow_deprecated_syntax then
