@@ -3,6 +3,6 @@
  ((name example_ppx_sexp_value_deprecated_lib)
   (libraries (core))
   (extra_disabled_warnings (22))
-  (preprocess (((pps (ppx_sexp_value)) All)))))
+  (preprocess (pps (ppx_sexp_value)))))
 
 (alias ((name DEFAULT) (deps (example.ml.pp))))

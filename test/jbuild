@@ -1,4 +1,4 @@
 (library
  ((name test_ppx_sexp_value_lib)
   (libraries (core sexplib))
-  (preprocess (((pps (ppx_sexp_conv ppx_here ppx_assert ppx_sexp_value ppx_inline_test)) All)))))
+  (preprocess (pps (ppx_sexp_conv ppx_here ppx_assert ppx_sexp_value ppx_inline_test)))))
