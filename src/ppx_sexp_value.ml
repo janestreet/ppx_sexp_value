@@ -1,10 +1,5 @@
-open StdLabels
-open Ppx_core.Std
-open Asttypes
-open Parsetree
+open Ppx_core
 open Ast_builder.Default
-
-[@@@metaloc loc]
 
 let allow_deprecated_syntax = ref false
 
@@ -150,7 +145,7 @@ and sexp_of_record ~loc fields =
   sexp_of_omittable_sexp_list loc ~tl:(elist ~loc [])
     (List.map fields ~f:(fun (id, e) ->
        let loc = { id.loc with loc_end = e.pexp_loc.loc_end } in
-       let name = String.concat ~sep:"." (Longident.flatten id.txt) in
+       let name = String.concat ~sep:"." (Longident.flatten_exn id.txt) in
        let k hole =
          sexp_list ~loc (elist ~loc [ sexp_atom ~loc (estring ~loc:id.loc name); hole ])
        in
@@ -171,7 +166,7 @@ module Deprecated = struct
   ;;
 
   let add_warning e msg =
-    let attr = Ast_mapper.attribute_of_warning e.pexp_loc msg in
+    let attr = attribute_of_warning e.pexp_loc msg in
     { e with pexp_attributes = attr :: e.pexp_attributes }
   ;;
 
@@ -181,7 +176,7 @@ module Deprecated = struct
     (* Don't misinterpret [%sexp ~~(e : t)] for the deprecated application syntax. *)
     | Pexp_apply ({ pexp_desc = Pexp_ident { txt = Lident "~~"; _}; _ }, _) -> expr
     | Pexp_apply (f, (_ :: _ as args))
-      when List.for_all args ~f:(fun (lab, _) -> lab = Nolabel) ->
+      when List.for_all args ~f:(fun (lab, _) -> match lab with Nolabel -> true | _ -> false) ->
       let el = List.map (f :: List.map args ~f:snd) ~f:rewrite_arg in
       let e = pexp_tuple ~loc el in
       if !allow_deprecated_syntax then
