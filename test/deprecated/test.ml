@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 let%test_module "expressions and their evaluation" =
   (module struct

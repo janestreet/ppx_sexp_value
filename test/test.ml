@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 let%test_unit "polymorphic variant, variant, list, literal" =
   let module M = struct

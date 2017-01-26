@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 (* Using [ {expr=42} ] as a representative expression suitable for [%sexp] *)
 
