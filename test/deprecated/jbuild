@@ -3,3 +3,5 @@
   (libraries (core sexplib))
   (extra_disabled_warnings (22))
   (preprocess (pps (ppx_sexp_conv ppx_here ppx_assert ppx_sexp_value ppx_inline_test)))))
+
+(jbuild_version jane_street)
