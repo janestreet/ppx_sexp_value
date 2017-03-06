@@ -1,3 +1,8 @@
+---
+title: ppx_sexp_value
+parent: ../README.md
+---
+
 A ppx rewriter that simplifies building s-expressions from ocaml values.
 
 Basic use
