@@ -4,4 +4,4 @@
   (flags (:standard -w -22))
   (preprocess (pps (ppx_sexp_conv ppx_here ppx_assert ppx_sexp_value ppx_inline_test ppx_driver.runner)))))
 
-(jbuild_version jane_street)
+(jbuild_version 1)
