@@ -1,6 +1,12 @@
 open Ppx_core
 open Ast_builder.Default
 
+let omit_nil =
+  Attribute.declare "sexp_value.sexp.omit_nil"
+    Attribute.Context.core_type
+    Ast_pattern.(pstr nil)
+    ()
+
 let allow_deprecated_syntax = ref false
 
 let sexp_atom ~loc x = [%expr Sexplib.Sexp.Atom [%e x]]
@@ -29,14 +35,21 @@ let sexp_of_constant ~loc const =
 type omittable_sexp =
   | Present of expression
   | Optional of Location.t * expression * (expression -> expression)
-  (* Optional (_, e, k) means [e] is an ast whose values have type ['a option]. The None
-     case should not be displayed, and the [a] in the Some case should be displayed by
-     calling k on it. *)
+  (* In [Optional (_, e, k)], [e] is an ast whose values have type ['a option],
+     and [k] is a function from ast of type ['a] to ast of type [Sexp.t].
+     The None case should not be displayed, and the [a] in the Some case should be
+     displayed by calling [k] on it. *)
+  | Omit_nil of Location.t * expression * (expression -> expression)
+  (* In [Omit_nil (_, e, k)], [e] is an ast of type [Sexp.t], and [k] if a function
+     ast of type [Sexp.t] and returns an other [Sexp.t].
+     When [e] is [List []], it should be not displayed. Otherwise [e] should be
+     displayed by calling [k] on it. *)
 
 let wrap_sexp_if_present omittable_sexp ~f =
   match omittable_sexp with
   | Optional (loc, e, k) -> Optional (loc, e, (fun e -> f (k e)))
   | Present e -> Present (f e)
+  | Omit_nil (loc, e, k) -> Omit_nil (loc, e, (fun e -> f (k e)))
 
 let sexp_of_constraint ~loc expr ctyp =
   match ctyp with
@@ -44,8 +57,13 @@ let sexp_of_constraint ~loc expr ctyp =
     let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty in
     Optional (loc, expr, fun expr -> eapply ~loc sexp_of [expr])
   | _ ->
-    let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp in
-    Present (eapply ~loc sexp_of [expr])
+    let expr =
+      let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp in
+      eapply ~loc sexp_of [expr]
+    in
+    match Attribute.get omit_nil ctyp with
+    | Some () -> Omit_nil (loc, expr, Fn.id)
+    | None -> Present expr
 ;;
 
 let rec sexp_of_expr expr =
@@ -54,6 +72,9 @@ let rec sexp_of_expr expr =
   | Optional (loc, _, _) ->
     Location.raise_errorf ~loc
       "ppx_sexp_value: cannot handle sexp_option in this context"
+  | Omit_nil (loc, _, _) ->
+    Location.raise_errorf ~loc
+      "ppx_sexp_value: cannot handle [@omit_nil] in this context"
 
 and omittable_sexp_of_expr expr =
   let loc = expr.pexp_loc in
@@ -137,7 +158,14 @@ and sexp_of_omittable_sexp_list loc el ~tl =
           match [%e v_opt], [%e acc ] with
           | None, tl -> tl
           | Some v, tl -> [%e k [%expr v]] :: tl
-        ])
+        ]
+      | Omit_nil (_, e, k) ->
+        [%expr
+          match [%e e], [%e acc] with
+          | Sexplib.Sexp.List [], tl -> tl
+          | v, tl -> [%e k [%expr v]] :: tl
+        ]
+    )
   in
   sexp_list ~loc l
 

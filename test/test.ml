@@ -96,6 +96,16 @@ let%test_module "optional record field" =
 end)
 ;;
 
+let%test_unit "omit_nil" =
+  let[@inline never] check sexp str =
+    [%test_result: string] (Sexp.to_string_hum sexp) ~expect:str
+  in
+  check [%sexp { a = ([1] : int list [@omit_nil]) }] "((a (1)))";
+  check [%sexp { a = ([] : int list [@omit_nil]) }] "()";
+  check [%sexp A, B ([1] : int list [@omit_nil]) ] "(A (B (1)))";
+  check [%sexp A, B ([] : int list [@omit_nil]) ] "(A)";
+;;
+
 let%test_module "expressions and their evaluation" =
   (module struct
     let%test_unit "at toplevel" =
