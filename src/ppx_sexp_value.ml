@@ -7,8 +7,8 @@ let omit_nil =
     Ast_pattern.(pstr nil)
     ()
 
-let sexp_atom ~loc x = [%expr Sexplib.Sexp.Atom [%e x]]
-let sexp_list ~loc x = [%expr Sexplib.Sexp.List [%e x]]
+let sexp_atom ~loc x = [%expr Ppx_sexp_conv_lib.Sexp.Atom [%e x]]
+let sexp_list ~loc x = [%expr Ppx_sexp_conv_lib.Sexp.List [%e x]]
 
 let rec list_and_tail_of_ast_list rev_el e =
   match e.pexp_desc with
@@ -21,7 +21,7 @@ let rec list_and_tail_of_ast_list rev_el e =
 
 let sexp_of_constant ~loc const =
   let f typ =
-    eapply ~loc (evar ~loc ("Sexplib.Conv.sexp_of_" ^ typ)) [pexp_constant ~loc const]
+    eapply ~loc (evar ~loc ("Ppx_sexp_conv_lib.Conv.sexp_of_" ^ typ)) [pexp_constant ~loc const]
   in
   match const with
   | Pconst_integer   _ -> f "int"
@@ -101,8 +101,8 @@ and omittable_sexp_of_expr expr =
          | Some e ->
            [%expr
              match [%e sexp_of_expr e] with
-             | Sexplib.Sexp.List l -> l
-             | Sexplib.Sexp.Atom _ as sexp -> [sexp]
+             | Ppx_sexp_conv_lib.Sexp.List l -> l
+             | Ppx_sexp_conv_lib.Sexp.Atom _ as sexp -> [sexp]
            ]
        in
        Present (sexp_of_omittable_sexp_list loc el ~tl)
@@ -160,7 +160,7 @@ and sexp_of_omittable_sexp_list loc el ~tl =
       | Omit_nil (_, e, k) ->
         [%expr
           match [%e e], [%e acc] with
-          | Sexplib.Sexp.List [], tl -> tl
+          | Ppx_sexp_conv_lib.Sexp.List [], tl -> tl
           | v, tl -> [%e k [%expr v]] :: tl
         ]
     )
