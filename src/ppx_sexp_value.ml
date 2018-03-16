@@ -1,4 +1,5 @@
-open Ppx_core
+open Base
+open Ppxlib
 open Ast_builder.Default
 
 let omit_nil =
@@ -179,7 +180,7 @@ and sexp_of_record ~loc fields =
 ;;
 
 let () =
-  Ppx_driver.register_transformation "sexp_value"
+  Driver.register_transformation "sexp_value"
     ~extensions:[
       Extension.declare "sexp"
         Extension.Context.expression
