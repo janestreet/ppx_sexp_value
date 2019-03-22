@@ -8,6 +8,12 @@ let omit_nil =
     Ast_pattern.(pstr nil)
     ()
 
+let option =
+  Attribute.declare "sexp_value.sexp.option"
+    Attribute.Context.core_type
+    Ast_pattern.(pstr nil)
+    ()
+
 let sexp_atom ~loc x = [%expr Ppx_sexp_conv_lib.Sexp.Atom [%e x]]
 let sexp_list ~loc x = [%expr Ppx_sexp_conv_lib.Sexp.List [%e x]]
 
@@ -33,11 +39,10 @@ let sexp_of_constant ~loc const =
 
 type omittable_sexp =
   | Present of expression
-  | Optional of Location.t * expression * (expression -> expression)
-  (* In [Optional (_, e, k)], [e] is an ast whose values have type ['a option],
-     and [k] is a function from ast of type ['a] to ast of type [Sexp.t].
-     The None case should not be displayed, and the [a] in the Some case should be
-     displayed by calling [k] on it. *)
+  | Optional of (Location.t * string) * expression * (expression -> expression)
+  (* In [Optional (_, e, k)], [e] is an ast whose values have type ['a option], and [k] is
+     a function from ast of type ['a] to ast of type [Sexp.t]. The None case should not be
+     displayed, and the [a] in the Some case should be displayed by calling [k] on it. *)
   | Omit_nil of Location.t * expression * (expression -> expression)
   (* In [Omit_nil (_, e, k)], [e] is an ast of type [Sexp.t], and [k] if a function
      ast of type [Sexp.t] and returns an other [Sexp.t].
@@ -54,7 +59,10 @@ let sexp_of_constraint ~loc expr ctyp =
   match ctyp with
   | [%type: [%t? ty] sexp_option] ->
     let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty in
-    Optional (loc, expr, fun expr -> eapply ~loc sexp_of [expr])
+    Optional ((loc, "sexp_option"), expr, fun expr -> eapply ~loc sexp_of [expr])
+  | [%type: [%t? ty] option] when Option.is_some (Attribute.get option ctyp) ->
+    let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty in
+    Optional ((loc, "[@sexp.optional]"), expr, fun expr -> eapply ~loc sexp_of [expr])
   | _ ->
     let expr =
       let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp in
@@ -68,9 +76,9 @@ let sexp_of_constraint ~loc expr ctyp =
 let rec sexp_of_expr expr =
   match omittable_sexp_of_expr expr with
   | Present v -> v
-  | Optional (loc, _, _) ->
+  | Optional ((loc, s), _, _) ->
     Location.raise_errorf ~loc
-      "ppx_sexp_value: cannot handle sexp_option in this context"
+      "ppx_sexp_value: cannot handle %s in this context" s
   | Omit_nil (loc, _, _) ->
     Location.raise_errorf ~loc
       "ppx_sexp_value: cannot handle [@omit_nil] in this context"

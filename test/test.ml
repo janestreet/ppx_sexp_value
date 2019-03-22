@@ -58,7 +58,7 @@ let%test_unit "sexp_option everywhere except record fields" =
             ~~(None : string sexp_option))]
 ;;
 
-let%test_module "optional record field" =
+let%test_module "optional record field via sexp_option" =
   (module struct
 
     let none = None
@@ -95,6 +95,55 @@ let%test_module "optional record field" =
         [%sexp { head = "foo"; tail = (tail : string list sexp_option)}]
 end)
 ;;
+
+let%test_unit "sexp.option everywhere except record fields" =
+  [%test_result: Sexp.t]
+    ~expect:(List [Atom "A"; List [Atom "B"; Atom "1"]; List [Atom "Some \"D\""; Atom "D"]])
+    [%sexp (`A,
+            B (Some 1 : int option [@sexp.option]),
+            C (None : int option [@sexp.option]),
+            ~~(Some "D" : string option [@sexp.option]),
+            ~~(None : string option [@sexp.option]))]
+;;
+
+let%test_module "optional record field via sexp.option" =
+  (module struct
+
+    let none = None
+    let some x = Some x
+
+    let%test_unit "absent" =
+      [%test_result: Sexp.t]
+        ~expect:(List [ List [ Atom "a"; Atom "1" ]
+                      ; List [ Atom "c"; Atom "3" ]])
+        [%sexp { a = 1; b = (none : int option [@sexp.option]); c = 3; }]
+    ;;
+
+    let%test_unit "present" =
+      [%test_result: Sexp.t]
+        ~expect:(List [ List [ Atom "a"; Atom "1" ]
+                      ; List [ Atom "b"; Atom "2" ]
+                      ; List [ Atom "c"; Atom "3" ]])
+        [%sexp { a = 1; b = (some 2 : int option [@sexp.option]); c = 3; }]
+    ;;
+
+    let%test_unit "all absent" =
+      [%test_result: Sexp.t]
+        ~expect:(List [])
+        [%sexp { a = (none: int option [@sexp.option]); b = (none : int option [@sexp.option]); }]
+    ;;
+
+    let%test_unit "tail as variable name" =
+      let tail = Some ["bar"; "bat"] in
+      [%test_result: Sexp.t]
+        ~expect:(List [
+          List [Atom "head"; Atom "foo"];
+          List [Atom "tail"; List [ Atom "bar"; Atom "bat" ] ]
+        ])
+        [%sexp { head = "foo"; tail = (tail : string list option [@sexp.option])}]
+end)
+;;
+
 
 let%test_unit "omit_nil" =
   let[@inline never] check sexp str =
