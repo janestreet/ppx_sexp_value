@@ -93,7 +93,7 @@ let%test_module "optional record field via sexp_option" =
           List [Atom "tail"; List [ Atom "bar"; Atom "bat" ] ]
         ])
         [%sexp { head = "foo"; tail = (tail : string list sexp_option)}]
-end)
+  end)
 ;;
 
 let%test_unit "sexp.option everywhere except record fields" =
@@ -141,12 +141,12 @@ let%test_module "optional record field via sexp.option" =
           List [Atom "tail"; List [ Atom "bar"; Atom "bat" ] ]
         ])
         [%sexp { head = "foo"; tail = (tail : string list option [@sexp.option])}]
-end)
+  end)
 ;;
 
 
 let%test_unit "omit_nil" =
-  let[@inline never] check sexp str =
+  let[@cold] check sexp str =
     [%test_result: string] (Sexp.to_string_hum sexp) ~expect:str
   in
   check [%sexp { a = ([1] : int list [@omit_nil]) }] "((a (1)))";
