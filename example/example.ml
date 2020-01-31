@@ -17,18 +17,3 @@ let _recomended_use_for_errors ~tmpfile ~dst =
              ; dest   = (dst     : string)
              ; exn    = (exn     : exn   )
              }]
-
-(* And some extra tests *)
-let _poly_variants_and_attributes =
-  let module Foo = struct
-    type t = [ `A ]
-    let sexp_of_t _ = Sexp.Atom "A"
-  end in
-  let foo = `A in
-  let maybe_foo = Some `A in
-  [%sexp { foo : Foo.t }],
-  [%sexp { foo : [< `A ] }],
-  [%sexp { foo : [< Foo.t ] }],
-  [%sexp { maybe_foo : Foo.t option }],
-  [%sexp { maybe_foo : [< `A ] option }],
-  [%sexp { maybe_foo : [< Foo.t ] option }]
