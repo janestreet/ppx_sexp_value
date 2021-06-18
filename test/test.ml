@@ -176,6 +176,12 @@ let%test_module "expressions and their evaluation" =
   end)
 ;;
 
+let%test_unit "[%string]" =
+  let b = "b" in
+  [%test_result: Sexp.t]
+    [%sexp [%string "a%{b}c"]]
+    ~expect:[%sexp "abc"]
+
 let _no_warnings_from_merlin_check_about_overlapping_locations =
   let module Foo = struct
     type t = [ `A ]

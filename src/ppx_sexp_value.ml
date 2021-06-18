@@ -119,6 +119,8 @@ and omittable_sexp_of_expr expr =
        Present (sexp_of_constant ~loc const)
      | Pexp_extension ({ txt = "here"; _ }, PStr []) ->
        Present (sexp_atom ~loc (Ppx_here_expander.lift_position_as_string ~loc))
+     | Pexp_extension ({ txt = "string"; _ }, _) ->
+       Present (sexp_atom ~loc expr)
      | Pexp_construct ({ txt = Lident "()"; _ }, None) ->
        Present (sexp_list ~loc (elist ~loc []))
      | Pexp_construct ({ txt = Lident constr; _ }, None)
