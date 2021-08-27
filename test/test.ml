@@ -48,54 +48,6 @@ let%test_unit "strange case doesn't raise an exception" =
     [%sexp `A :: `B]
 ;;
 
-let%test_unit "sexp_option everywhere except record fields" =
-  [%test_result: Sexp.t]
-    ~expect:(List [Atom "A"; List [Atom "B"; Atom "1"]; List [Atom "Some \"D\""; Atom "D"]])
-    [%sexp (`A,
-            B (Some 1 : int sexp_option),
-            C (None : int sexp_option),
-            ~~(Some "D" : string sexp_option),
-            ~~(None : string sexp_option))]
-;;
-
-let%test_module "optional record field via sexp_option" =
-  (module struct
-
-    let none = None
-    let some x = Some x
-
-    let%test_unit "absent" =
-      [%test_result: Sexp.t]
-        ~expect:(List [ List [ Atom "a"; Atom "1" ]
-                      ; List [ Atom "c"; Atom "3" ]])
-        [%sexp { a = 1; b = (none : int sexp_option); c = 3; }]
-    ;;
-
-    let%test_unit "present" =
-      [%test_result: Sexp.t]
-        ~expect:(List [ List [ Atom "a"; Atom "1" ]
-                      ; List [ Atom "b"; Atom "2" ]
-                      ; List [ Atom "c"; Atom "3" ]])
-        [%sexp { a = 1; b = (some 2 : int sexp_option); c = 3; }]
-    ;;
-
-    let%test_unit "all absent" =
-      [%test_result: Sexp.t]
-        ~expect:(List [])
-        [%sexp { a = (none: int sexp_option); b = (none : int sexp_option); }]
-    ;;
-
-    let%test_unit "tail as variable name" =
-      let tail = Some ["bar"; "bat"] in
-      [%test_result: Sexp.t]
-        ~expect:(List [
-          List [Atom "head"; Atom "foo"];
-          List [Atom "tail"; List [ Atom "bar"; Atom "bat" ] ]
-        ])
-        [%sexp { head = "foo"; tail = (tail : string list sexp_option)}]
-  end)
-;;
-
 let%test_unit "sexp.option everywhere except record fields" =
   [%test_result: Sexp.t]
     ~expect:(List [Atom "A"; List [Atom "B"; Atom "1"]; List [Atom "Some \"D\""; Atom "D"]])

@@ -57,9 +57,6 @@ let wrap_sexp_if_present omittable_sexp ~f =
 
 let sexp_of_constraint ~loc expr ctyp =
   match ctyp with
-  | [%type: [%t? ty] sexp_option] ->
-    let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty in
-    Optional ((loc, "sexp_option"), expr, fun expr -> eapply ~loc sexp_of [expr])
   | [%type: [%t? ty] option] when Option.is_some (Attribute.get option ctyp) ->
     let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty in
     Optional ((loc, "[@sexp.optional]"), expr, fun expr -> eapply ~loc sexp_of [expr])
