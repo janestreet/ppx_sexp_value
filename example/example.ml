@@ -1,6 +1,6 @@
 open Core
 module Unix = Core_unix
-module Time = Time_unix
+module Time = Time_float_unix
 
 (* Examples from ../README.md *)
 
