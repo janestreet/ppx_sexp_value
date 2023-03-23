@@ -71,7 +71,6 @@ List [List [Atom "x";     [%sexp_of: int] x];
       [%sexp_of: string] "literal";
      ]
 ```
-
 Recommended use for errors
 --------------------------
 
@@ -90,4 +89,22 @@ with exn ->
       ; exn    = (exn     : exn   )
       }
     ]
+```
+
+Eagerness
+--------
+
+The extension `[%lazy_sexp]` is additionally provided, which just wraps
+the generated code in `[lazy]` to delay computing and allocating of
+possibly large sexps. This is intended to be used with, for example,
+`[Error.of_lazy_sexp]`, where the error messages may be large, but
+are typically not used:
+
+```ocaml
+let execute_query_exn ~database ~query =
+  Database.execute_query ~database ~query
+  |> Option.value_exn
+       ~error:
+         (Error.of_lazy_sexp
+            [%lazy_sexp ("Query failed", { database : Database.t; query : Query.t })])
 ```

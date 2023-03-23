@@ -145,7 +145,9 @@ and omittable_sexp_of_expr expr =
        in
        wrap_sexp_if_present (sexp_of_constraint ~loc expr ctyp) ~f:k
      | _ ->
-       Location.raise_errorf ~loc "ppx_sexp_value: don't know how to handle this construct")
+       Location.raise_errorf
+         ~loc
+         "ppx_sexp_value: don't know how to handle this construct")
 
 and sexp_of_omittable_sexp_list loc el ~tl =
   let l =
@@ -204,5 +206,10 @@ let () =
           Extension.Context.expression
           Ast_pattern.(pstr (pstr_eval __ nil ^:: nil))
           (fun ~loc:_ ~path:_ e -> sexp_of_expr e)
+      ; Extension.declare
+          "lazy_sexp"
+          Extension.Context.expression
+          Ast_pattern.(pstr (pstr_eval __ nil ^:: nil))
+          (fun ~loc ~path:_ e -> [%expr lazy [%e sexp_of_expr e]])
       ]
 ;;
