@@ -51,7 +51,7 @@ type omittable_sexp =
      a function from ast of type ['a] to ast of type [Sexp.t]. The None case should not be
      displayed, and the [a] in the Some case should be displayed by calling [k] on it. *)
   | Omit_nil of Location.t * expression * (expression -> expression)
-  (* In [Omit_nil (_, e, k)], [e] is an ast of type [Sexp.t], and [k] if a function
+(* In [Omit_nil (_, e, k)], [e] is an ast of type [Sexp.t], and [k] if a function
      ast of type [Sexp.t] and returns an other [Sexp.t].
      When [e] is [List []], it should be not displayed. Otherwise [e] should be
      displayed by calling [k] on it. *)
@@ -99,8 +99,8 @@ and omittable_sexp_of_expr expr =
                ( e1
                , sexp_of_expr e2
                , match e3 with
-               | None -> None
-               | Some e -> Some (sexp_of_expr e) )
+                 | None -> None
+                 | Some e -> Some (sexp_of_expr e) )
          }
      | Pexp_constraint (expr, ctyp) -> sexp_of_constraint ~loc expr ctyp
      | Pexp_construct ({ txt = Lident "[]"; _ }, None)
@@ -178,7 +178,7 @@ and sexp_of_record ~loc fields =
          match e.pexp_desc with
          | Pexp_constraint (e', c)
            when Location.compare_pos id.loc.loc_start e.pexp_loc.loc_start = 0
-             && Location.compare e.pexp_loc e'.pexp_loc = 0 ->
+                && Location.compare e.pexp_loc e'.pexp_loc = 0 ->
            (* { foo : int }  *)
            { e with pexp_desc = Pexp_constraint ({ e' with pexp_loc = id.loc }, c) }
          | _ -> e

@@ -16,5 +16,5 @@ let _recomended_use_for_errors ~tmpfile ~dst =
     raise_s
       [%sexp
         "Error while renaming file"
-      , { source = (tmpfile : string); dest = (dst : string); exn : exn }]
+        , { source = (tmpfile : string); dest = (dst : string); exn : exn }]
 ;;

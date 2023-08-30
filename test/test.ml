@@ -58,10 +58,10 @@ let%test_unit "sexp.option everywhere except record fields" =
          [ Atom "A"; List [ Atom "B"; Atom "1" ]; List [ Atom "Some \"D\""; Atom "D" ] ])
     [%sexp
       `A
-    , B (Some 1 : (int option[@sexp.option]))
-    , C (None : (int option[@sexp.option]))
-    , ~~(Some "D" : (string option[@sexp.option]))
-    , ~~(None : (string option[@sexp.option]))]
+      , B (Some 1 : (int option[@sexp.option]))
+      , C (None : (int option[@sexp.option]))
+      , ~~(Some "D" : (string option[@sexp.option]))
+      , ~~(None : (string option[@sexp.option]))]
 ;;
 
 let%test_module "optional record field via sexp.option" =
@@ -234,10 +234,10 @@ let%test_module "[%lazy_sexp] output" =
              ])
         [%sexp
           `A
-        , B (Some 1 : (int option[@sexp.option]))
-        , C (None : (int option[@sexp.option]))
-        , ~~(Some "D" : (string option[@sexp.option]))
-        , ~~(None : (string option[@sexp.option]))]
+          , B (Some 1 : (int option[@sexp.option]))
+          , C (None : (int option[@sexp.option]))
+          , ~~(Some "D" : (string option[@sexp.option]))
+          , ~~(None : (string option[@sexp.option]))]
     ;;
   end)
 ;;
