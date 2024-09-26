@@ -90,7 +90,9 @@ and omittable_sexp_of_expr expr =
   let loc = { expr.pexp_loc with loc_ghost = true } in
   wrap_sexp_if_present
     ~f:(fun new_expr -> { new_expr with pexp_attributes = expr.pexp_attributes })
-    (match expr.pexp_desc with
+    (match
+       Ppxlib_jane.Shim.Expression_desc.of_parsetree ~loc:expr.pexp_loc expr.pexp_desc
+     with
      | Pexp_ifthenelse (e1, e2, e3) ->
        Present
          { expr with
@@ -102,7 +104,7 @@ and omittable_sexp_of_expr expr =
                  | None -> None
                  | Some e -> Some (sexp_of_expr e) )
          }
-     | Pexp_constraint (expr, ctyp) -> sexp_of_constraint ~loc expr ctyp
+     | Pexp_constraint (expr, Some ctyp, _) -> sexp_of_constraint ~loc expr ctyp
      | Pexp_construct ({ txt = Lident "[]"; _ }, None)
      | Pexp_construct
          ({ txt = Lident "::"; _ }, Some { pexp_desc = Pexp_tuple [ _; _ ]; _ }) ->
@@ -138,12 +140,18 @@ and omittable_sexp_of_expr expr =
      | Pexp_record (fields, None) -> Present (sexp_of_record ~loc fields)
      | Pexp_apply
          ( { pexp_desc = Pexp_ident { txt = Lident "~~"; _ }; _ }
-         , [ (Nolabel, { pexp_desc = Pexp_constraint (expr, ctyp); _ }) ] ) ->
-       let expr_str = Pprintast.string_of_expression expr in
-       let k hole =
-         sexp_list ~loc (elist ~loc [ sexp_atom ~loc (estring ~loc expr_str); hole ])
-       in
-       wrap_sexp_if_present (sexp_of_constraint ~loc expr ctyp) ~f:k
+         , [ (Nolabel, { pexp_desc = inner_desc; pexp_loc = inner_loc; _ }) ] ) ->
+       (match Ppxlib_jane.Shim.Expression_desc.of_parsetree ~loc:inner_loc inner_desc with
+        | Pexp_constraint (expr, Some ctyp, _) ->
+          let expr_str = Pprintast.string_of_expression expr in
+          let k hole =
+            sexp_list ~loc (elist ~loc [ sexp_atom ~loc (estring ~loc expr_str); hole ])
+          in
+          wrap_sexp_if_present (sexp_of_constraint ~loc expr ctyp) ~f:k
+        | _ ->
+          Location.raise_errorf
+            ~loc
+            "ppx_sexp_value: don't know how to handle this construct")
      | _ ->
        Location.raise_errorf
          ~loc
@@ -175,12 +183,18 @@ and sexp_of_record ~loc fields =
     ~tl:(elist ~loc [])
     (List.map fields ~f:(fun (id, e) ->
        let e =
-         match e.pexp_desc with
-         | Pexp_constraint (e', c)
+         match
+           Ppxlib_jane.Shim.Expression_desc.of_parsetree ~loc:e.pexp_loc e.pexp_desc
+         with
+         | Pexp_constraint (e', Some c, modes)
            when Location.compare_pos id.loc.loc_start e.pexp_loc.loc_start = 0
                 && Location.compare e.pexp_loc e'.pexp_loc = 0 ->
            (* { foo : int }  *)
-           { e with pexp_desc = Pexp_constraint ({ e' with pexp_loc = id.loc }, c) }
+           { e with
+             pexp_desc =
+               Pexp_constraint ({ e' with pexp_loc = id.loc }, Some c, modes)
+               |> Ppxlib_jane.Shim.Expression_desc.to_parsetree
+           }
          | _ -> e
        in
        let loc = { id.loc with loc_end = e.pexp_loc.loc_end; loc_ghost = true } in
