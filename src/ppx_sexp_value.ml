@@ -71,11 +71,11 @@ let wrap_sexp_if_present omittable_sexp ~f =
 let sexp_of_constraint ~loc expr ctyp =
   match ctyp with
   | [%type: [%t? ty] option] when Option.is_some (Attribute.get option ctyp) ->
-    let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty in
+    let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty ~localize:false in
     Optional ((loc, "[@sexp.optional]"), expr, fun expr -> eapply ~loc sexp_of [ expr ])
   | _ ->
     let expr =
-      let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp in
+      let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp ~localize:false in
       eapply ~loc sexp_of [ expr ]
     in
     (match Attribute.get omit_nil ctyp with
@@ -209,7 +209,7 @@ and sexp_of_record ~loc fields =
            { e with
              pexp_desc =
                Pexp_constraint ({ e' with pexp_loc = id.loc }, Some c, modes)
-               |> Ppxlib_jane.Shim.Expression_desc.to_parsetree
+               |> Ppxlib_jane.Shim.Expression_desc.to_parsetree ~loc:e.pexp_loc
            }
          | _ -> e
        in
