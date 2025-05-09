@@ -231,3 +231,17 @@ module%test [@name "[%lazy_sexp] output"] _ = struct
         , ~~(None : (string option[@sexp.option]))]
   ;;
 end
+
+let%test_unit "[%sexp] works with ppx_template" =
+  let open%template struct
+    [@@@kind.default k = (bits64, value)]
+
+    type ('a : k) t = T of 'a [@@deriving sexp_of]
+    type ('a : k) not_a_t = Not_t of 'a [@@deriving sexp_of]
+  end in
+  [%test_result: Sexp.t]
+    ~expect:[%sexp (T 1 : int t), (Not_t 2 : int not_a_t)]
+    [%sexp
+      (T #1L : (Int64_u.t t[@kind bits64]))
+      , (Not_t #2L : (Int64_u.t not_a_t[@kind bits64]))]
+;;
