@@ -32,11 +32,12 @@ let rec list_and_tail_of_ast_list rev_el e =
   | _ -> List.rev rev_el, Some e
 ;;
 
-let sexp_of_constant ~loc const =
+let sexp_of_constant ~loc ~stackify const =
+  let stackify_suffix = if stackify then "__stack" else "" in
   let mk typ const =
     eapply
       ~loc
-      (evar ~loc ("Ppx_sexp_conv_lib.Conv.sexp_of_" ^ typ))
+      (evar ~loc ("Ppx_sexp_conv_lib.Conv.sexp_of_" ^ typ ^ stackify_suffix))
       [ pexp_constant ~loc const ]
   in
   let f typ = mk typ const in
@@ -68,14 +69,14 @@ let wrap_sexp_if_present omittable_sexp ~f =
   | Omit_nil (loc, e, k) -> Omit_nil (loc, e, fun e -> f (k e))
 ;;
 
-let sexp_of_constraint ~loc expr ctyp =
+let sexp_of_constraint ~loc ~stackify expr ctyp =
   match ctyp with
   | [%type: [%t? ty] option] when Option.is_some (Attribute.get option ctyp) ->
-    let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty ~localize:false in
+    let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty ~stackify in
     Optional ((loc, "[@sexp.optional]"), expr, fun expr -> eapply ~loc sexp_of [ expr ])
   | _ ->
     let expr =
-      let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp ~localize:false in
+      let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp ~stackify in
       eapply ~loc sexp_of [ expr ]
     in
     (match Attribute.get omit_nil ctyp with
@@ -92,15 +93,15 @@ let is_list_construction : Ppxlib_jane.Shim.Expression_desc.t -> bool = function
   | _ -> false
 ;;
 
-let rec sexp_of_expr expr =
-  match omittable_sexp_of_expr expr with
+let rec sexp_of_expr expr ~stackify =
+  match omittable_sexp_of_expr expr ~stackify with
   | Present v -> v
   | Optional ((loc, s), _, _) ->
     Location.raise_errorf ~loc "ppx_sexp_value: cannot handle %s in this context" s
   | Omit_nil (loc, _, _) ->
     Location.raise_errorf ~loc "ppx_sexp_value: cannot handle [@omit_nil] in this context"
 
-and omittable_sexp_of_expr expr =
+and omittable_sexp_of_expr expr ~stackify =
   let loc = { expr.pexp_loc with loc_ghost = true } in
   wrap_sexp_if_present
     ~f:(fun new_expr -> { new_expr with pexp_attributes = expr.pexp_attributes })
@@ -113,26 +114,26 @@ and omittable_sexp_of_expr expr =
            pexp_desc =
              Pexp_ifthenelse
                ( e1
-               , sexp_of_expr e2
+               , sexp_of_expr e2 ~stackify
                , match e3 with
                  | None -> None
-                 | Some e -> Some (sexp_of_expr e) )
+                 | Some e -> Some (sexp_of_expr e ~stackify) )
          }
-     | Pexp_constraint (expr, Some ctyp, _) -> sexp_of_constraint ~loc expr ctyp
+     | Pexp_constraint (expr, Some ctyp, _) -> sexp_of_constraint ~loc ~stackify expr ctyp
      | expr_desc when is_list_construction expr_desc ->
        let el, tl = list_and_tail_of_ast_list [] expr in
-       let el = List.map el ~f:omittable_sexp_of_expr in
+       let el = List.map el ~f:(omittable_sexp_of_expr ~stackify) in
        let tl =
          match tl with
          | None -> [%expr []]
          | Some e ->
            [%expr
-             match [%e sexp_of_expr e] with
+             match [%e sexp_of_expr e ~stackify] with
              | Ppx_sexp_conv_lib.Sexp.List l -> l
              | Ppx_sexp_conv_lib.Sexp.Atom _ as sexp -> [ sexp ]]
        in
        Present (sexp_of_omittable_sexp_list loc el ~tl)
-     | Pexp_constant const -> Present (sexp_of_constant ~loc const)
+     | Pexp_constant const -> Present (sexp_of_constant ~loc ~stackify const)
      | Pexp_extension ({ txt = "here"; _ }, PStr []) ->
        Present (sexp_atom ~loc (Ppx_here_expander.lift_position_as_string ~loc))
      | Pexp_extension ({ txt = "string"; _ }, _) -> Present (sexp_atom ~loc expr)
@@ -145,15 +146,15 @@ and omittable_sexp_of_expr expr =
        let k hole =
          sexp_list ~loc (elist ~loc [ sexp_atom ~loc (estring ~loc constr); hole ])
        in
-       wrap_sexp_if_present (omittable_sexp_of_expr arg) ~f:k
+       wrap_sexp_if_present (omittable_sexp_of_expr arg ~stackify) ~f:k
      | Pexp_tuple labeled_el ->
        (match Ppxlib_jane.as_unlabeled_tuple labeled_el with
         | Some el ->
-          let el = List.map el ~f:omittable_sexp_of_expr in
+          let el = List.map el ~f:(omittable_sexp_of_expr ~stackify) in
           Present (sexp_of_omittable_sexp_list loc el ~tl:(elist ~loc []))
         | None ->
           Location.raise_errorf ~loc "ppx_sexp_value: labeled tuples are unsupported")
-     | Pexp_record (fields, None) -> Present (sexp_of_record ~loc fields)
+     | Pexp_record (fields, None) -> Present (sexp_of_record ~loc ~stackify fields)
      | Pexp_apply
          ( { pexp_desc = Pexp_ident { txt = Lident "~~"; _ }; _ }
          , [ (Nolabel, { pexp_desc = inner_desc; pexp_loc = inner_loc; _ }) ] ) ->
@@ -163,7 +164,7 @@ and omittable_sexp_of_expr expr =
           let k hole =
             sexp_list ~loc (elist ~loc [ sexp_atom ~loc (estring ~loc expr_str); hole ])
           in
-          wrap_sexp_if_present (sexp_of_constraint ~loc expr ctyp) ~f:k
+          wrap_sexp_if_present (sexp_of_constraint ~loc ~stackify expr ctyp) ~f:k
         | _ ->
           Location.raise_errorf
             ~loc
@@ -193,7 +194,7 @@ and sexp_of_omittable_sexp_list loc el ~tl =
   in
   sexp_list ~loc l
 
-and sexp_of_record ~loc fields =
+and sexp_of_record ~loc ~stackify fields =
   sexp_of_omittable_sexp_list
     loc
     ~tl:(elist ~loc [])
@@ -224,7 +225,7 @@ and sexp_of_record ~loc fields =
               ; hole
               ])
        in
-       wrap_sexp_if_present (omittable_sexp_of_expr e) ~f:k))
+       wrap_sexp_if_present (omittable_sexp_of_expr e ~stackify) ~f:k))
 ;;
 
 let () =
@@ -234,12 +235,17 @@ let () =
       [ Extension.declare
           "sexp"
           Extension.Context.expression
-          Ast_pattern.(pstr (pstr_eval __ nil ^:: nil))
-          (fun ~loc:_ ~path:_ e -> sexp_of_expr e)
+          Ast_pattern.(single_expr_payload __)
+          (fun ~loc:_ ~path:_ e -> sexp_of_expr e ~stackify:false)
+      ; Extension.declare
+          "sexp__stack"
+          Extension.Context.expression
+          Ast_pattern.(single_expr_payload __)
+          (fun ~loc:_ ~path:_ e -> sexp_of_expr e ~stackify:true)
       ; Extension.declare
           "lazy_sexp"
           Extension.Context.expression
-          Ast_pattern.(pstr (pstr_eval __ nil ^:: nil))
-          (fun ~loc ~path:_ e -> [%expr lazy [%e sexp_of_expr e]])
+          Ast_pattern.(single_expr_payload __)
+          (fun ~loc ~path:_ e -> [%expr lazy [%e sexp_of_expr e ~stackify:false]])
       ]
 ;;

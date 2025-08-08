@@ -108,3 +108,39 @@ let execute_query_exn ~database ~query =
          (Error.of_lazy_sexp
             [%lazy_sexp ("Query failed", { database : Database.t; query : Query.t })])
 ```
+
+Stack
+-----
+
+The extension `[%sexp__stack]` can be used to return stack-allocated sexps:
+
+```ocaml
+let list_of_strings ~n = exclave_
+  let elems =
+    Local_iterators_to_be_replaced.List.init_local n ~f:(fun x -> exclave_
+      string_of_int x)
+  in
+  [%sexp__stack (elems : string list)]
+;;
+```
+
+This will prompt the ppx to reach for `sexp_of_*__stack` functions over `sexp_of_*`
+functions.
+
+For ease of use, the ppx can be used in conjuction with
+[`ppx_template`](%{root}/ppx/ppx_template/doc/README.mdx):
+
+```ocaml
+let%template[@alloc a = stack] _stack_allocated () =
+  (let elems =
+     Local_iterators_to_be_replaced.List.init_local 10 ~f:(fun x -> exclave_
+       string_of_int x)
+   in
+   [%sexp (elems : string list)] [@alloc a])
+  [@exclave_if_stack a]
+;;
+```
+
+This transforms `[sexp ...]` into `[%sexp__stack ...]`.
+
+Stack and lazy features cannot be used together.
