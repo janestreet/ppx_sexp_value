@@ -48,6 +48,7 @@ let sexp_of_constant ~loc ~stackify const =
   | Pconst_float _ -> f "float"
   | Pconst_unboxed_float (x, c) -> mk "float" (Pconst_float (x, c))
   | Pconst_unboxed_integer (x, c) -> mk "int" (Pconst_integer (x, Some c))
+  | Pconst_untagged_char c -> mk "char" (Pconst_char c)
 ;;
 
 type omittable_sexp =
