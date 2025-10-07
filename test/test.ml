@@ -1,5 +1,8 @@
 open Core
 
+[%%template
+[@@@alloc.default a @ m = (heap_global, stack_local)]
+
 let%test_unit "polymorphic variant, variant, list, literal" =
   let module M = struct
     type normal_blop = Blop of int [@@deriving sexp_of]
@@ -11,57 +14,60 @@ let%test_unit "polymorphic variant, variant, list, literal" =
     [@@deriving sexp_of]
   end
   in
-  [%test_result: Sexp.t]
+  ([%test_result: Sexp.t] [@alloc a])
     ~expect:
       (List
          [ M.sexp_of_variant_blop (`Message "string")
          ; M.sexp_of_variant_blop (`Blop 2)
          ; M.sexp_of_normal_blop (Blop 2)
          ])
-    [%sexp [ `Message "string"; `Blop 2; Blop 2 ]]
+    ([%sexp [ `Message "string"; `Blop 2; Blop 2 ]] [@alloc a])
 ;;
 
 let%test_unit "record, if" =
-  [%test_result: Sexp.t]
+  ([%test_result: Sexp.t] [@alloc a])
     ~expect:
       (List [ List [ Atom "message"; Atom "string" ]; List [ Atom "A.blop"; Atom "1" ] ])
-    [%sexp { message = "string"; A.blop = (if true then 1 else `two) }]
+    ([%sexp { message = "string"; A.blop = (if true then 1 else `two) }] [@alloc a])
 ;;
 
 module A = struct
-  type t = int [@@deriving sexp_of]
+  type t = int [@@deriving sexp_of ~stackify]
 end
 
 let a : A.t = 2
 
 let%test_unit "tuple, explicit types" =
-  [%test_result: Sexp.t]
+  ([%test_result: Sexp.t] [@alloc a])
     ~expect:(List [ Atom "2"; Atom "1" ])
-    [%sexp (a : A.t), (lazy 1 : int Lazy.t)]
+    ([%sexp (a [@alloc a] : A.t), (lazy 1 : int Lazy.t)] [@alloc a])
 ;;
 
 let%test_unit "constructed list" =
   let int_list = [ 2; 3 ] in
-  [%test_result: Sexp.t]
+  ([%test_result: Sexp.t] [@alloc a])
     ~expect:(List [ Atom "one"; Atom "2"; Atom "3" ])
-    [%sexp `one :: (int_list : int list)]
+    ([%sexp `one :: (int_list : int list)] [@alloc a])
 ;;
 
 let%test_unit "strange case doesn't raise an exception" =
-  [%test_result: Sexp.t] ~expect:(List [ Atom "A"; Atom "B" ]) [%sexp `A :: `B]
+  ([%test_result: Sexp.t] [@alloc a])
+    ~expect:(List [ Atom "A"; Atom "B" ])
+    ([%sexp `A :: `B] [@alloc a])
 ;;
 
 let%test_unit "sexp.option everywhere except record fields" =
-  [%test_result: Sexp.t]
+  ([%test_result: Sexp.t] [@alloc a])
     ~expect:
       (List
          [ Atom "A"; List [ Atom "B"; Atom "1" ]; List [ Atom "Some \"D\""; Atom "D" ] ])
-    [%sexp
-      `A
-      , B (Some 1 : (int option[@sexp.option]))
-      , C (None : (int option[@sexp.option]))
-      , ~~(Some "D" : (string option[@sexp.option]))
-      , ~~(None : (string option[@sexp.option]))]
+    ([%sexp
+       `A
+       , B (Some 1 : (int option[@sexp.option]))
+       , C (None : (int option[@sexp.option]))
+       , ~~(Some "D" : (string option[@sexp.option]))
+       , ~~(None : (string option[@sexp.option]))]
+    [@alloc a])
 ;;
 
 module%test [@name "optional record field via sexp.option"] _ = struct
@@ -69,101 +75,108 @@ module%test [@name "optional record field via sexp.option"] _ = struct
   let some x = Some x
 
   let%test_unit "absent" =
-    [%test_result: Sexp.t]
+    ([%test_result: Sexp.t] [@alloc a])
       ~expect:(List [ List [ Atom "a"; Atom "1" ]; List [ Atom "c"; Atom "3" ] ])
-      [%sexp { a = 1; b = (none : (int option[@sexp.option])); c = 3 }]
+      ([%sexp { a = 1; b = (none : (int option[@sexp.option])); c = 3 }] [@alloc a])
   ;;
 
   let%test_unit "present" =
-    [%test_result: Sexp.t]
+    ([%test_result: Sexp.t] [@alloc a])
       ~expect:
         (List
            [ List [ Atom "a"; Atom "1" ]
            ; List [ Atom "b"; Atom "2" ]
            ; List [ Atom "c"; Atom "3" ]
            ])
-      [%sexp { a = 1; b = (some 2 : (int option[@sexp.option])); c = 3 }]
+      ([%sexp { a = 1; b = (some 2 : (int option[@sexp.option])); c = 3 }] [@alloc a])
   ;;
 
   let%test_unit "all absent" =
-    [%test_result: Sexp.t]
+    ([%test_result: Sexp.t] [@alloc a])
       ~expect:(List [])
-      [%sexp
-        { a = (none : (int option[@sexp.option]))
-        ; b = (none : (int option[@sexp.option]))
-        }]
+      ([%sexp
+         { a = (none : (int option[@sexp.option]))
+         ; b = (none : (int option[@sexp.option]))
+         }]
+      [@alloc a])
   ;;
 
   let%test_unit "tail as variable name" =
     let tail = Some [ "bar"; "bat" ] in
-    [%test_result: Sexp.t]
+    ([%test_result: Sexp.t] [@alloc a])
       ~expect:
         (List
            [ List [ Atom "head"; Atom "foo" ]
            ; List [ Atom "tail"; List [ Atom "bar"; Atom "bat" ] ]
            ])
-      [%sexp { head = "foo"; tail : (string list option[@sexp.option]) }]
+      ([%sexp { head = "foo"; tail : (string list option[@sexp.option]) }] [@alloc a])
   ;;
 end
 
 let%test_unit "omit_nil" =
-  let[@cold] check sexp str =
-    [%test_result: string] (Sexp.to_string_hum sexp) ~expect:str
+  let[@cold] check (sexp @ m) str =
+    [%test_result: string] (Sexp.to_string_hum (Sexp.globalize sexp)) ~expect:str
   in
-  check [%sexp { a = ([ 1 ] : (int list[@omit_nil])) }] "((a (1)))";
-  check [%sexp { a = ([] : (int list[@omit_nil])) }] "()";
-  check [%sexp A, B ([ 1 ] : (int list[@omit_nil]))] "(A (B (1)))";
-  check [%sexp A, B ([] : (int list[@omit_nil]))] "(A)"
+  check ([%sexp { a = ([ 1 ] : (int list[@omit_nil])) }] [@alloc a]) "((a (1)))";
+  check ([%sexp { a = ([] : (int list[@omit_nil])) }] [@alloc a]) "()";
+  check ([%sexp A, B ([ 1 ] : (int list[@omit_nil]))] [@alloc a]) "(A (B (1)))";
+  check ([%sexp A, B ([] : (int list[@omit_nil]))] [@alloc a]) "(A)"
 ;;
 
 module%test [@name "expressions and their evaluation"] _ = struct
   let%test_unit "at toplevel" =
     let x = 1 in
-    [%test_result: Sexp.t] ~expect:(List [ Atom "x"; Atom "1" ]) [%sexp ~~(x : int)]
+    ([%test_result: Sexp.t] [@alloc a])
+      ~expect:(List [ Atom "x"; Atom "1" ])
+      ([%sexp ~~(x : int)] [@alloc a])
   ;;
 
   let%test_unit "anywhere" =
     let x = 1
     and y = 2 in
-    [%test_result: Sexp.t]
+    ([%test_result: Sexp.t] [@alloc a])
       ~expect:
         (List
            [ Atom "message"
            ; List [ Atom "x"; Atom "1" ]
            ; List [ Atom "x + y"; Atom "3" ]
            ])
-      [%sexp "message", ~~(x : int), ~~(x + y : int)]
+      ([%sexp "message", ~~(x : int), ~~(x + y : int)] [@alloc a])
   ;;
 end
 
 let%test_unit "[%string]" =
   let b = "b" in
-  [%test_result: Sexp.t] [%sexp [%string "a%{b}c"]] ~expect:[%sexp "abc"]
+  ([%test_result: Sexp.t] [@alloc a])
+    ([%sexp [%string "a%{b}c"]] [@alloc a])
+    ~expect:[%sexp "abc"]
 ;;
 
-let _no_warnings_from_merlin_check_about_overlapping_locations =
+let _no_warnings_from_merlin_check_about_overlapping_locations () =
   let module Foo = struct
     type t = [ `A ]
 
-    let sexp_of_t _ = Sexp.Atom "A"
+    let sexp_of_t _ = Sexp.Atom "A" [@@alloc a]
   end
   in
   let foo = `A in
   let maybe_foo = Some `A in
-  ( [%sexp { foo : Foo.t }]
-  , [%sexp { foo : [< `A ] }]
-  , [%sexp { foo : [< Foo.t ] }]
-  , [%sexp { maybe_foo : Foo.t option }]
-  , [%sexp { maybe_foo : [< `A ] option }]
-  , [%sexp { maybe_foo : [< Foo.t ] option }] )
+  ( ([%sexp { foo : Foo.t }] [@alloc a])
+  , ([%sexp { foo : [< `A ] }] [@alloc a])
+  , ([%sexp { foo : [< Foo.t ] }] [@alloc a])
+  , ([%sexp { maybe_foo : Foo.t option }] [@alloc a])
+  , ([%sexp { maybe_foo : [< `A ] option }] [@alloc a])
+  , ([%sexp { maybe_foo : [< Foo.t ] option }] [@alloc a]) )
+  [@exclave_if_stack a]
 ;;
 
 let%test_unit "[%sexp] is not lazy" =
   let side_effect = ref false in
-  let _ = [%sexp (side_effect := true : unit)] in
+  let _ = [%sexp (side_effect := true : unit)] [@alloc a] in
   [%test_result: bool] ~expect:true !side_effect
-;;
+;;]
 
+(* do not template lazy_sexp tests because you cannot have local [Lazy.t]s *)
 let%test_unit "[%lazy_sexp] is lazy" =
   let side_effect = ref false in
   let delayed_sexp = [%lazy_sexp (side_effect := true : unit)] in
@@ -172,6 +185,7 @@ let%test_unit "[%lazy_sexp] is lazy" =
   [%test_result: bool] ~expect:true !side_effect
 ;;
 
+(* do not template lazy_sexp tests because you cannot have local [Lazy.t]s *)
 module%test [@name "[%lazy_sexp] output"] _ = struct
   let%test_unit "polymorphic variant, variant, list, literal" =
     let module M = struct
@@ -191,31 +205,33 @@ module%test [@name "[%lazy_sexp] output"] _ = struct
            ; M.sexp_of_variant_blop (`Blop 2)
            ; M.sexp_of_normal_blop (Blop 2)
            ])
-      [%sexp [ `Message "string"; `Blop 2; Blop 2 ]]
+      (force [%lazy_sexp [ `Message "string"; `Blop 2; Blop 2 ]])
   ;;
 
   let%test_unit "record, if" =
     [%test_result: Sexp.t]
       ~expect:
         (List [ List [ Atom "message"; Atom "string" ]; List [ Atom "A.blop"; Atom "1" ] ])
-      [%sexp { message = "string"; A.blop = (if true then 1 else `two) }]
+      (force [%lazy_sexp { message = "string"; A.blop = (if true then 1 else `two) }])
   ;;
 
   let%test_unit "tuple, explicit types" =
     [%test_result: Sexp.t]
       ~expect:(List [ Atom "2"; Atom "1" ])
-      [%sexp (a : A.t), (lazy 1 : int Lazy.t)]
+      (force [%lazy_sexp (a : A.t), (lazy 1 : int Lazy.t)])
   ;;
 
   let%test_unit "constructed list" =
     let int_list = [ 2; 3 ] in
     [%test_result: Sexp.t]
       ~expect:(List [ Atom "one"; Atom "2"; Atom "3" ])
-      [%sexp `one :: (int_list : int list)]
+      (force [%lazy_sexp `one :: (int_list : int list)])
   ;;
 
   let%test_unit "strange case doesn't raise an exception" =
-    [%test_result: Sexp.t] ~expect:(List [ Atom "A"; Atom "B" ]) [%sexp `A :: `B]
+    [%test_result: Sexp.t]
+      ~expect:(List [ Atom "A"; Atom "B" ])
+      (force [%lazy_sexp `A :: `B])
   ;;
 
   let%test_unit "sexp.option everywhere except record fields" =
@@ -223,12 +239,13 @@ module%test [@name "[%lazy_sexp] output"] _ = struct
       ~expect:
         (List
            [ Atom "A"; List [ Atom "B"; Atom "1" ]; List [ Atom "Some \"D\""; Atom "D" ] ])
-      [%sexp
-        `A
-        , B (Some 1 : (int option[@sexp.option]))
-        , C (None : (int option[@sexp.option]))
-        , ~~(Some "D" : (string option[@sexp.option]))
-        , ~~(None : (string option[@sexp.option]))]
+      (force
+         [%lazy_sexp
+           `A
+           , B (Some 1 : (int option[@sexp.option]))
+           , C (None : (int option[@sexp.option]))
+           , ~~(Some "D" : (string option[@sexp.option]))
+           , ~~(None : (string option[@sexp.option]))])
   ;;
 end
 
