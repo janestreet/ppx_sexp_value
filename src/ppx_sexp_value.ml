@@ -18,6 +18,14 @@ let option =
     ()
 ;;
 
+let or_null =
+  Attribute.declare
+    "sexp_value.sexp.or_null"
+    Attribute.Context.core_type
+    Ast_pattern.(pstr nil)
+    ()
+;;
+
 let sexp_atom ~loc x = [%expr Ppx_sexp_conv_lib.Sexp.Atom [%e x]]
 let sexp_list ~loc x = [%expr Ppx_sexp_conv_lib.Sexp.List [%e x]]
 
@@ -57,6 +65,10 @@ type omittable_sexp =
   (* In [Optional (_, e, k)], [e] is an ast whose values have type ['a option], and [k] is
      a function from ast of type ['a] to ast of type [Sexp.t]. The None case should not be
      displayed, and the [a] in the Some case should be displayed by calling [k] on it. *)
+  | Nullable of (Location.t * string) * expression * (expression -> expression)
+  (* In [Nullable (_, e, k)], [e] is an ast whose values have type ['a or_null], and [k]
+     is a function from ast of type ['a] to ast of type [Sexp.t]. The Null case should not
+     be displayed, and the [a] in the This case should be displayed by calling [k] on it. *)
   | Omit_nil of Location.t * expression * (expression -> expression)
 (* In [Omit_nil (_, e, k)], [e] is an ast of type [Sexp.t], and [k] if a function
      ast of type [Sexp.t] and returns an other [Sexp.t].
@@ -66,6 +78,7 @@ type omittable_sexp =
 let wrap_sexp_if_present omittable_sexp ~f =
   match omittable_sexp with
   | Optional (loc, e, k) -> Optional (loc, e, fun e -> f (k e))
+  | Nullable (loc, e, k) -> Nullable (loc, e, fun e -> f (k e))
   | Present e -> Present (f e)
   | Omit_nil (loc, e, k) -> Omit_nil (loc, e, fun e -> f (k e))
 ;;
@@ -74,7 +87,10 @@ let sexp_of_constraint ~loc ~stackify expr ctyp =
   match ctyp with
   | [%type: [%t? ty] option] when Option.is_some (Attribute.get option ctyp) ->
     let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty ~stackify in
-    Optional ((loc, "[@sexp.optional]"), expr, fun expr -> eapply ~loc sexp_of [ expr ])
+    Optional ((loc, "[@sexp.option]"), expr, fun expr -> eapply ~loc sexp_of [ expr ])
+  | [%type: [%t? ty] or_null] when Option.is_some (Attribute.get or_null ctyp) ->
+    let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ty ~stackify in
+    Nullable ((loc, "[@sexp.or_null]"), expr, fun expr -> eapply ~loc sexp_of [ expr ])
   | _ ->
     let expr =
       let sexp_of = Ppx_sexp_conv_expander.Sexp_of.core_type ctyp ~stackify in
@@ -98,6 +114,8 @@ let rec sexp_of_expr expr ~stackify =
   match omittable_sexp_of_expr expr ~stackify with
   | Present v -> v
   | Optional ((loc, s), _, _) ->
+    Location.raise_errorf ~loc "ppx_sexp_value: cannot handle %s in this context" s
+  | Nullable ((loc, s), _, _) ->
     Location.raise_errorf ~loc "ppx_sexp_value: cannot handle %s in this context" s
   | Omit_nil (loc, _, _) ->
     Location.raise_errorf ~loc "ppx_sexp_value: cannot handle [@omit_nil] in this context"
@@ -187,6 +205,13 @@ and sexp_of_omittable_sexp_list loc el ~tl =
           match [%e v_opt], [%e acc] with
           | None, tl -> tl
           | Some v, tl -> [%e k [%expr v]] :: tl]
+      | Nullable (_, v_orn, k) ->
+        (* We match simultaneously on the head and tail in the generated code to avoid
+           changing their respective typing environments. *)
+        [%expr
+          match [%e v_orn], [%e acc] with
+          | Null, tl -> tl
+          | This v, tl -> [%e k [%expr v]] :: tl]
       | Omit_nil (_, e, k) ->
         [%expr
           match [%e e], [%e acc] with
