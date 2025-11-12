@@ -70,6 +70,19 @@ let%test_unit "sexp.option everywhere except record fields" =
     [@alloc a])
 ;;
 
+let%test_unit "sexp.or_null everywhere except record fields" =
+  [%test_result: Sexp.t]
+    ~expect:
+      (List
+         [ Atom "A"; List [ Atom "B"; Atom "1" ]; List [ Atom "This \"D\""; Atom "D" ] ])
+    [%sexp
+      `A
+      , B (This 1 : (int or_null[@sexp.or_null]))
+      , C (Null : (int or_null[@sexp.or_null]))
+      , ~~(This "D" : (string or_null[@sexp.or_null]))
+      , ~~(Null : (string or_null[@sexp.or_null]))]
+;;
+
 module%test [@name "optional record field via sexp.option"] _ = struct
   let none = None
   let some x = Some x
@@ -110,6 +123,48 @@ module%test [@name "optional record field via sexp.option"] _ = struct
            ; List [ Atom "tail"; List [ Atom "bar"; Atom "bat" ] ]
            ])
       ([%sexp { head = "foo"; tail : (string list option[@sexp.option]) }] [@alloc a])
+  ;;
+end
+
+module%test [@name "optional record field via sexp.or_null"] _ = struct
+  let null = Null
+  let this x = This x
+
+  let%test_unit "absent" =
+    [%test_result: Sexp.t]
+      ~expect:(List [ List [ Atom "a"; Atom "1" ]; List [ Atom "c"; Atom "3" ] ])
+      [%sexp { a = 1; b = (null : (int or_null[@sexp.or_null])); c = 3 }]
+  ;;
+
+  let%test_unit "present" =
+    [%test_result: Sexp.t]
+      ~expect:
+        (List
+           [ List [ Atom "a"; Atom "1" ]
+           ; List [ Atom "b"; Atom "2" ]
+           ; List [ Atom "c"; Atom "3" ]
+           ])
+      [%sexp { a = 1; b = (this 2 : (int or_null[@sexp.or_null])); c = 3 }]
+  ;;
+
+  let%test_unit "all absent" =
+    [%test_result: Sexp.t]
+      ~expect:(List [])
+      [%sexp
+        { a = (null : (int or_null[@sexp.or_null]))
+        ; b = (null : (int or_null[@sexp.or_null]))
+        }]
+  ;;
+
+  let%test_unit "tail as variable name" =
+    let tail = This [ "bar"; "bat" ] in
+    [%test_result: Sexp.t]
+      ~expect:
+        (List
+           [ List [ Atom "head"; Atom "foo" ]
+           ; List [ Atom "tail"; List [ Atom "bar"; Atom "bat" ] ]
+           ])
+      [%sexp { head = "foo"; tail : (string list or_null[@sexp.or_null]) }]
   ;;
 end
 
@@ -246,6 +301,19 @@ module%test [@name "[%lazy_sexp] output"] _ = struct
            , C (None : (int option[@sexp.option]))
            , ~~(Some "D" : (string option[@sexp.option]))
            , ~~(None : (string option[@sexp.option]))])
+  ;;
+
+  let%test_unit "sexp.or_null everywhere except record fields" =
+    [%test_result: Sexp.t]
+      ~expect:
+        (List
+           [ Atom "A"; List [ Atom "B"; Atom "1" ]; List [ Atom "This \"D\""; Atom "D" ] ])
+      [%sexp
+        `A
+        , B (This 1 : (int or_null[@sexp.or_null]))
+        , C (Null : (int or_null[@sexp.or_null]))
+        , ~~(This "D" : (string or_null[@sexp.or_null]))
+        , ~~(Null : (string or_null[@sexp.or_null]))]
   ;;
 end
 
