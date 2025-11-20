@@ -70,10 +70,9 @@ type omittable_sexp =
      is a function from ast of type ['a] to ast of type [Sexp.t]. The Null case should not
      be displayed, and the [a] in the This case should be displayed by calling [k] on it. *)
   | Omit_nil of Location.t * expression * (expression -> expression)
-(* In [Omit_nil (_, e, k)], [e] is an ast of type [Sexp.t], and [k] if a function
-     ast of type [Sexp.t] and returns an other [Sexp.t].
-     When [e] is [List []], it should be not displayed. Otherwise [e] should be
-     displayed by calling [k] on it. *)
+(* In [Omit_nil (_, e, k)], [e] is an ast of type [Sexp.t], and [k] if a function ast of
+   type [Sexp.t] and returns an other [Sexp.t]. When [e] is [List []], it should be not
+   displayed. Otherwise [e] should be displayed by calling [k] on it. *)
 
 let wrap_sexp_if_present omittable_sexp ~f =
   match omittable_sexp with
