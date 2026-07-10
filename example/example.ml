@@ -20,20 +20,14 @@ let _recomended_use_for_errors ~tmpfile ~dst =
 ;;
 
 let _stack_allocated () = exclave_
-  let elems =
-    Local_iterators_to_be_replaced.List.init_local 10 ~f:(fun x -> exclave_
-      string_of_int x)
-  in
+  let elems = (List.init [@alloc stack]) 10 ~f:(fun x -> exclave_ string_of_int x) in
   [%sexp__stack (elems : string list)]
 ;;
 
 (* using ppx template *)
 
 let%template[@alloc a = stack] _stack_allocated () =
-  (let elems =
-     Local_iterators_to_be_replaced.List.init_local 10 ~f:(fun x -> exclave_
-       string_of_int x)
-   in
+  (let elems = (List.init [@alloc stack]) 10 ~f:(fun x -> exclave_ string_of_int x) in
    [%sexp (elems : string list)] [@alloc a])
   [@exclave_if_stack a]
 ;;
