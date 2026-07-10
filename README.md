@@ -116,10 +116,7 @@ The extension `[%sexp__stack]` can be used to return stack-allocated sexps:
 
 ```ocaml
 let list_of_strings ~n = exclave_
-  let elems =
-    Local_iterators_to_be_replaced.List.init_local n ~f:(fun x -> exclave_
-      string_of_int x)
-  in
+  let elems = (List.init [@alloc stack]) n ~f:string_of_int in
   [%sexp__stack (elems : string list)]
 ;;
 ```
@@ -132,10 +129,7 @@ For ease of use, the ppx can be used in conjuction with
 
 ```ocaml
 let%template[@alloc a = stack] _stack_allocated () =
-  (let elems =
-     Local_iterators_to_be_replaced.List.init_local 10 ~f:(fun x -> exclave_
-       string_of_int x)
-   in
+  (let elems = (List.init [@alloc a]) 10 ~f:string_of_int in
    [%sexp (elems : string list)] [@alloc a])
   [@exclave_if_stack a]
 ;;
