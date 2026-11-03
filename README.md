@@ -1,5 +1,4 @@
-ppx_sexp_value
-==============
+# ppx_sexp_value
 
 A ppx rewriter that simplifies building s-expressions from ocaml values.
 
