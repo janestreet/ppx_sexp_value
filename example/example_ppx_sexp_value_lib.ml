@@ -1,1 +1,1 @@
-module Example = Example
+(* Deliberately left empty. *)
